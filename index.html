@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pure Monaco Editor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #181A20 0%, #23263a 100%);
+      font-family: 'Poppins', sans-serif;
+      color: #F3F6FA;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    .app-container {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: rgba(24, 26, 32, 0.95);
+      backdrop-filter: blur(20px);
+    }
+    
+    .tab-bar {
+      display: flex;
+      background: linear-gradient(135deg, #23263A 0%, #2A2D3A 100%);
+      border-bottom: 1px solid rgba(123, 140, 255, 0.2);
+      overflow-x: auto;
+      padding: 0 8px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .tab-bar::-webkit-scrollbar {
+      height: 4px;
+    }
+    
+    .tab-bar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .tab-bar::-webkit-scrollbar-thumb {
+      background: rgba(123, 140, 255, 0.3);
+      border-radius: 2px;
+    }
+    
+    .tab {
+      background: rgba(24, 26, 32, 0.8);
+      color: #6B7A99;
+      border: none;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 8px 8px 0 0;
+      margin: 4px 2px 0 2px;
+      min-width: 120px;
+      max-width: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .tab::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(123, 140, 255, 0.1) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .tab:hover::before {
+      opacity: 1;
+    }
+    
+    .tab.active {
+      background: linear-gradient(135deg, #181A20 0%, #23263A 100%);
+      color: #7B8CFF;
+      border-bottom: 3px solid #7B8CFF;
+      box-shadow: 0 4px 20px rgba(123, 140, 255, 0.2);
+      transform: translateY(-2px);
+    }
+    
+    .tab:hover {
+      background: linear-gradient(135deg, #2A2D3A 0%, #3A3F5A 100%);
+      color: #F3F6FA;
+      transform: translateY(-1px);
+    }
+    
+    .tab-close {
+      background: transparent;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+      opacity: 0.6;
+      transition: all 0.2s ease;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    
+    .tab-close:hover {
+      background: linear-gradient(135deg, #FF6B81 0%, #FF8A9A 100%);
+      color: white;
+      opacity: 1;
+      transform: scale(1.1);
+      box-shadow: 0 2px 8px rgba(255, 107, 129, 0.4);
+    }
+    
+    .add-tab-btn {
+      background: linear-gradient(135deg, #23263A 0%, #2A2D3A 100%);
+      color: #7B8CFF;
+      border: 2px dashed rgba(123, 140, 255, 0.3);
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 600;
+      border-radius: 8px 8px 0 0;
+      margin: 4px 2px 0 2px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      min-width: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .add-tab-btn:hover {
+      background: linear-gradient(135deg, #2A2D3A 0%, #3A3F5A 100%);
+      color: #B7C9FF;
+      border-color: rgba(123, 140, 255, 0.6);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(123, 140, 255, 0.2);
+    }
+    
+    .editor-container {
+      flex: 1;
+      position: relative;
+      border-radius: 0 0 16px 16px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .editor-wrapper {
+      width: 100%;
+      height: 100%;
+      border-radius: 0 0 16px 16px;
+      overflow: hidden;
+    }
+    
+    /* Typing animation */
+    @keyframes typing {
+      0% { opacity: 0; transform: translateY(10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    
+    .typing-animation {
+      animation: typing 0.3s ease-out;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .tab {
+        min-width: 100px;
+        padding: 8px 12px;
+        font-size: 12px;
+      }
+      
+      .add-tab-btn {
+        padding: 8px 10px;
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="tab-bar" id="tab-bar">
+      <button class="add-tab-btn" onclick="addTab()" title="Add New Tab">+</button>
+    </div>
+    
+    <div class="editor-container">
+      <div class="editor-wrapper" id="editor-container"></div>
+    </div>
+  </div>
+  
+  <!-- Load Monaco Editor -->
+  <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <script>
+    let editors = {};
+    let activeTabId = null;
+    let tabCounter = 1;
+    
+    require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' } });
+    
+    require(['vs/editor/editor.main'], function() {
+      // Define Pure theme with enhanced colors
+      monaco.editor.defineTheme('pure-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [
+          { token: 'comment', foreground: '6B7A99', fontStyle: 'italic' },
+          { token: 'keyword', foreground: '7B8CFF', fontStyle: 'bold' },
+          { token: 'string', foreground: 'B7C9FF' },
+          { token: 'number', foreground: 'FFE066' },
+          { token: 'operator', foreground: 'F3F6FA' },
+          { token: 'function', foreground: '7B8CFF' },
+          { token: 'variable', foreground: 'F3F6FA' },
+          { token: 'type', foreground: '7B8CFF' },
+          { token: 'class', foreground: '7B8CFF' },
+          { token: 'interface', foreground: '7B8CFF' },
+          { token: 'enum', foreground: '7B8CFF' },
+          { token: 'enumMember', foreground: 'B7C9FF' },
+          { token: 'constant', foreground: 'FFE066' },
+          { token: 'parameter', foreground: 'F3F6FA' },
+          { token: 'property', foreground: 'B7C9FF' },
+          { token: 'namespace', foreground: '7B8CFF' },
+          { token: 'decorator', foreground: 'FFE066' },
+          { token: 'regexp', foreground: 'FF6B81' }
+        ],
+        colors: {
+          'editor.background': '#181A20',
+          'editor.foreground': '#F3F6FA',
+          'editor.lineHighlightBackground': '#23263A',
+          'editor.lineHighlightBorder': '#3A3F5A',
+          'editor.selectionBackground': '#7B8CFF40',
+          'editor.inactiveSelectionBackground': '#7B8CFF20',
+          'editorCursor.foreground': '#7B8CFF',
+          'editorWhitespace.foreground': '#3A3F5A',
+          'editorIndentGuide.background': '#3A3F5A',
+          'editorIndentGuide.activeBackground': '#7B8CFF',
+          'editorLineNumber.foreground': '#6B7A99',
+          'editorLineNumber.activeForeground': '#7B8CFF',
+          'editorRuler.foreground': '#3A3F5A',
+          'editorCodeLens.foreground': '#6B7A99',
+          'editorBracketMatch.background': '#7B8CFF20',
+          'editorBracketMatch.border': '#7B8CFF',
+          'editorOverviewRuler.border': '#3A3F5A',
+          'editorOverviewRuler.findMatchForeground': '#7B8CFF',
+          'editorOverviewRuler.errorForeground': '#FF6B81',
+          'editorOverviewRuler.warningForeground': '#FFE066',
+          'editorOverviewRuler.infoForeground': '#7B8CFF',
+          'editorError.foreground': '#FF6B81',
+          'editorWarning.foreground': '#FFE066',
+          'editorInfo.foreground': '#7B8CFF',
+          'editorGutter.background': '#181A20',
+          'editorGutter.modifiedBackground': '#7B8CFF',
+          'editorGutter.addedBackground': '#4CAF50',
+          'editorGutter.deletedBackground': '#FF6B81',
+          'diffEditor.insertedTextBackground': '#4CAF5020',
+          'diffEditor.removedTextBackground': '#FF6B8120',
+          'diffEditor.diagonalFill': '#3A3F5A',
+          'scrollbarSlider.background': '#3A3F5A',
+          'scrollbarSlider.hoverBackground': '#4A4F6A',
+          'scrollbarSlider.activeBackground': '#5A5F8A',
+          'editorWidget.background': '#23263A',
+          'editorWidget.border': '#3A3F5A',
+          'editorSuggestWidget.background': '#23263A',
+          'editorSuggestWidget.border': '#3A3F5A',
+          'editorSuggestWidget.selectedBackground': '#7B8CFF20',
+          'editorSuggestWidget.highlightForeground': '#7B8CFF',
+          'editorHoverWidget.background': '#23263A',
+          'editorHoverWidget.border': '#3A3F5A',
+          'debugExceptionWidget.background': '#23263A',
+          'debugExceptionWidget.border': '#3A3F5A',
+          'editorMarkerNavigation.background': '#23263A',
+          'editorMarkerNavigationError.background': '#FF6B8120',
+          'editorMarkerNavigationWarning.background': '#FFE06620',
+          'editorMarkerNavigationInfo.background': '#7B8CFF20',
+          'problemsViewIcon.errorForeground': '#FF6B81',
+          'problemsViewIcon.warningForeground': '#FFE066',
+          'problemsViewIcon.infoForeground': '#7B8CFF',
+          'charts.foreground': '#F3F6FA',
+          'charts.lines': '#3A3F5A',
+          'charts.red': '#FF6B81',
+          'charts.blue': '#7B8CFF',
+          'charts.yellow': '#FFE066',
+          'charts.orange': '#FFA726',
+          'charts.green': '#4CAF50',
+          'charts.purple': '#9C27B0'
+        }
+      });
+      
+      // Create initial tab
+      addTab();
+      
+      // Handle window resize
+      window.addEventListener('resize', function() {
+        Object.values(editors).forEach(editor => {
+          if (editor) editor.layout();
+        });
+      });
+    });
+    
+    function addTab() {
+      const tabId = `tab-${tabCounter++}`;
+      const tabName = `Script ${tabCounter - 1}`;
+      
+      // Create tab button with typing animation
+      const tabButton = document.createElement('button');
+      tabButton.className = 'tab typing-animation';
+      tabButton.setAttribute('data-tab', tabId);
+      tabButton.innerHTML = `
+        <span>${tabName}</span>
+        <button class="tab-close" onclick="removeTab('${tabId}')" title="Close Tab">×</button>
+      `;
+      
+      // Insert before the add button
+      const addButton = document.querySelector('.add-tab-btn');
+      addButton.parentNode.insertBefore(tabButton, addButton);
+      
+      // Create editor container
+      const editorContainer = document.createElement('div');
+      editorContainer.id = `editor-${tabId}`;
+      editorContainer.style.width = '100%';
+      editorContainer.style.height = '100%';
+      editorContainer.style.display = 'none';
+      editorContainer.style.borderRadius = '0 0 16px 16px';
+      document.getElementById('editor-container').appendChild(editorContainer);
+      
+      // Create Monaco editor with Poppins font
+      const editor = monaco.editor.create(editorContainer, {
+        value: 'print("Pure on top")',
+        language: 'lua',
+        theme: 'pure-dark',
+        fontSize: 16,
+        fontFamily: '"Poppins", "Consolas", "Courier New", monospace',
+        fontWeight: '400',
+        lineNumbers: 'on',
+        roundedSelection: false,
+        scrollBeyondLastLine: false,
+        readOnly: false,
+        cursorStyle: 'line',
+        automaticLayout: true,
+        minimap: {
+          enabled: true,
+          maxColumn: 120
+        },
+        wordWrap: 'on',
+        folding: true,
+        showFoldingControls: 'always',
+        renderLineHighlight: 'all',
+        selectOnLineNumbers: true,
+        glyphMargin: true,
+        useTabStops: false,
+        tabSize: 4,
+        insertSpaces: true,
+        detectIndentation: false,
+        trimAutoWhitespace: true,
+        largeFileOptimizations: true,
+        codeLens: false,
+        suggestOnTriggerCharacters: true,
+        acceptSuggestionOnCommitCharacter: true,
+        acceptSuggestionOnEnter: 'on',
+        wordBasedSuggestions: true,
+        parameterHints: {
+          enabled: true
+        },
+        autoIndent: 'full',
+        formatOnType: true,
+        formatOnPaste: true,
+        suggest: {
+          insertMode: 'replace'
+        },
+        scrollbar: {
+          vertical: 'visible',
+          horizontal: 'visible',
+          verticalScrollbarSize: 12,
+          horizontalScrollbarSize: 12
+        }
+      });
+      
+      // Store editor reference
+      editors[tabId] = editor;
+      
+      // Switch to new tab
+      switchTab(tabId);
+      
+      // Add typing animation to the editor content
+      setTimeout(() => {
+        editorContainer.classList.add('typing-animation');
+      }, 100);
+      
+      return tabId;
+    }
+    
+    function switchTab(tabId) {
+      // Update tab buttons
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      const activeTabButton = document.querySelector(`[data-tab="${tabId}"]`);
+      if (activeTabButton) activeTabButton.classList.add('active');
+      
+      // Update editor visibility
+      Object.keys(editors).forEach(id => {
+        const container = document.getElementById(`editor-${id}`);
+        if (container) {
+          container.style.display = id === tabId ? 'block' : 'none';
+        }
+      });
+      
+      activeTabId = tabId;
+      
+      // Layout the active editor
+      if (editors[tabId]) {
+        setTimeout(() => {
+          editors[tabId].layout();
+        }, 100);
+      }
+    }
+    
+    function removeTab(tabId) {
+      // Don't remove if it's the last tab
+      const tabButtons = document.querySelectorAll('.tab');
+      if (tabButtons.length <= 1) {
+        return;
+      }
+      
+      // Remove tab button with animation
+      const tabButton = document.querySelector(`[data-tab="${tabId}"]`);
+      if (tabButton) {
+        tabButton.style.transform = 'translateX(-100%)';
+        tabButton.style.opacity = '0';
+        setTimeout(() => {
+          tabButton.remove();
+        }, 300);
+      }
+      
+      // Remove editor container
+      const editorContainer = document.getElementById(`editor-${tabId}`);
+      if (editorContainer) {
+        editorContainer.style.transform = 'translateX(-100%)';
+        editorContainer.style.opacity = '0';
+        setTimeout(() => {
+          editorContainer.remove();
+        }, 300);
+      }
+      
+      // Dispose editor
+      if (editors[tabId]) {
+        editors[tabId].dispose();
+        delete editors[tabId];
+      }
+      
+      // Switch to another tab if this was the active one
+      if (activeTabId === tabId) {
+        const remainingTabs = Object.keys(editors);
+        if (remainingTabs.length > 0) {
+          switchTab(remainingTabs[0]);
+        }
+      }
+    }
+    
+    // Add click handlers for tabs
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('tab') || e.target.parentElement.classList.contains('tab')) {
+        const tab = e.target.classList.contains('tab') ? e.target : e.target.parentElement;
+        const tabId = tab.getAttribute('data-tab');
+        if (tabId) {
+          switchTab(tabId);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
